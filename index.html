@@ -79,79 +79,81 @@
 
     <!-- 하단 고정 플레이어 바 -->
     <div class="player-bar">
-        <!-- 현재 재생 정보 -->
-        <div class="now-playing-info">
-            <div class="np-icon"><i class="fas fa-music" id="np-icon"></i></div>
-            <div class="now-playing-text">
-                <div class="now-playing-title" id="np-title">재생 중이 아님</div>
-                <div class="now-playing-status" id="np-status">대기 중</div>
-            </div>
-        </div>
-
-        <!-- 프로그레스 바 -->
-        <div class="progress-container">
-            <span id="time-current">0:00</span>
-            <div class="progress-bar" id="progress-bar" onclick="seek(event)">
-                <div class="progress-fill" id="progress-fill"></div>
-            </div>
-            <span id="time-total">0:00</span>
-        </div>
-
-        <!-- 컨트롤 버튼 -->
-        <div class="controls">
-            <button class="btn-ctrl" id="btn-shuffle" onclick="toggleShuffle()" title="랜덤 재생">
-                <i class="fas fa-random"></i>
-            </button>
-            <button class="btn-ctrl" onclick="playPrev()" title="이전 곡">
-                <i class="fas fa-step-backward"></i>
-            </button>
-            <button class="btn-ctrl btn-play" id="btn-play" onclick="togglePlay()" title="재생 / 일시정지">
-                <i class="fas fa-play-circle" id="play-icon"></i>
-            </button>
-            <button class="btn-ctrl" onclick="playNext()" title="다음 곡">
-                <i class="fas fa-step-forward"></i>
-            </button>
-            <button class="btn-ctrl" id="btn-repeat" onclick="toggleRepeat()" title="반복 재생 (Off / 전체 / 1곡)">
-                <i class="fas fa-redo" id="repeat-icon"></i>
-            </button>
-            <button class="btn-ctrl" id="btn-sort" onclick="toggleSort()" title="정렬">
-                <i class="fas fa-sort-alpha-down" id="sort-icon"></i>
-            </button>
-        </div>
-
-        <!-- 부가 컨트롤 (배속 & 음량) -->
-        <div class="extra-controls">
-            <!-- 배속 조절 -->
-            <div class="speed-control">
-                <span class="speed-label">배속</span>
-                <button class="speed-step-btn" onclick="stepSpeed(-1)" title="감소">−</button>
-                <input type="range" class="speed-slider" id="speed-slider" min="-3" max="3" step="1" value="0" oninput="onSpeedSliderChange(this.value)">
-                <button class="speed-step-btn" onclick="stepSpeed(1)" title="증가">+</button>
-                <span class="speed-value" id="speed-display">1.0x</span>
-                <button class="speed-reset-btn" onclick="setSpeedStep(0)" title="1.0x 초기화">↺</button>
+        <div class="player-bar-container">
+            <!-- 1. 현재 재생 정보 -->
+            <div class="now-playing-info">
+                <div class="np-icon"><i class="fas fa-music" id="np-icon"></i></div>
+                <div class="now-playing-text">
+                    <div class="now-playing-title" id="np-title">재생 중이 아님</div>
+                    <div class="now-playing-status" id="np-status">대기 중</div>
+                </div>
             </div>
 
-            <!-- 음량 조절 -->
-            <div class="volume-control">
-                <button class="btn-vol-mute" onclick="toggleMute()" title="음소거 / 해제">
-                    <i class="fas fa-volume-up" id="vol-icon"></i>
-                </button>
-                <input type="range" class="volume-slider" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="onVolumeChange(this.value)">
-                <span class="vol-value" id="vol-display">100%</span>
+            <!-- 2. 프로그레스 바 -->
+            <div class="progress-container">
+                <span id="time-current">0:00</span>
+                <div class="progress-bar" id="progress-bar" onclick="seek(event)">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <span id="time-total">0:00</span>
             </div>
-        </div>
 
-        <!-- 액션 패널 버튼 그리드 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) -->
-        <div class="action-panel-bottom">
-            <button class="action-btn" style="grid-column: 1; grid-row: 1;" onclick="performAction('t1')">T1</button>
-            <button class="action-btn" style="grid-column: 2; grid-row: 1;" onclick="performAction('t2')">T2</button>
-            <button class="action-btn" style="grid-column: 3; grid-row: 1;" onclick="performAction('t3')">T&D</button>
-            <button class="action-btn btn-del-fixed" onclick="performAction('del')">Del</button>
-            <button class="action-btn btn-prefix-fixed" onclick="openPrefixModal()">Prefix</button>
+            <!-- 3. 메인 컨트롤 행 (좌: 배속 | 중: 재생 제어 버튼 | 우: 음량) -->
+            <div class="player-controls-row">
+                <!-- 좌: 배속 조절 -->
+                <div class="speed-control">
+                    <span class="speed-label">배속</span>
+                    <button class="speed-step-btn" onclick="stepSpeed(-1)" title="감소">−</button>
+                    <input type="range" class="speed-slider" id="speed-slider" min="-3" max="3" step="1" value="0" oninput="onSpeedSliderChange(this.value)">
+                    <button class="speed-step-btn" onclick="stepSpeed(1)" title="증가">+</button>
+                    <span class="speed-value" id="speed-display">1.0x</span>
+                    <button class="speed-reset-btn" onclick="setSpeedStep(0)" title="1.0x 초기화">↺</button>
+                </div>
 
-            <button class="action-btn" style="grid-column: 1; grid-row: 2;" onclick="performAction('p1')">P1</button>
-            <button class="action-btn" style="grid-column: 2; grid-row: 2;" onclick="performAction('p2')">P2</button>
-            <button class="action-btn" style="grid-column: 3; grid-row: 2;" onclick="performAction('p3')">P&D</button>
+                <!-- 중: 컨트롤 버튼들 -->
+                <div class="controls">
+                    <button class="btn-ctrl" id="btn-shuffle" onclick="toggleShuffle()" title="랜덤 재생">
+                        <i class="fas fa-random"></i>
+                    </button>
+                    <button class="btn-ctrl" onclick="playPrev()" title="이전 곡">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    <button class="btn-ctrl btn-play" id="btn-play" onclick="togglePlay()" title="재생 / 일시정지">
+                        <i class="fas fa-play-circle" id="play-icon"></i>
+                    </button>
+                    <button class="btn-ctrl" onclick="playNext()" title="다음 곡">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
+                    <button class="btn-ctrl" id="btn-repeat" onclick="toggleRepeat()" title="반복 재생 (Off / 전체 / 1곡)">
+                        <i class="fas fa-redo" id="repeat-icon"></i>
+                    </button>
+                    <button class="btn-ctrl" id="btn-sort" onclick="toggleSort()" title="정렬">
+                        <i class="fas fa-sort-alpha-down" id="sort-icon"></i>
+                    </button>
+                </div>
+
+                <!-- 우: 음량 조절 -->
+                <div class="volume-control">
+                    <button class="btn-vol-mute" onclick="toggleMute()" title="음소거 / 해제">
+                        <i class="fas fa-volume-up" id="vol-icon"></i>
+                    </button>
+                    <input type="range" class="volume-slider" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="onVolumeChange(this.value)">
+                    <span class="vol-value" id="vol-display">100%</span>
+                </div>
+            </div>
+
+            <!-- 4. 액션 패널 버튼 그리드 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) -->
+            <div class="action-panel-bottom">
+                <button class="action-btn" style="grid-column: 1; grid-row: 1;" onclick="performAction('t1')">T1</button>
+                <button class="action-btn" style="grid-column: 2; grid-row: 1;" onclick="performAction('t2')">T2</button>
+                <button class="action-btn" style="grid-column: 3; grid-row: 1;" onclick="performAction('t3')">T&D</button>
+                <button class="action-btn btn-del-fixed" onclick="performAction('del')">Del</button>
+                <button class="action-btn btn-prefix-fixed" onclick="openPrefixModal()">Prefix</button>
+
+                <button class="action-btn" style="grid-column: 1; grid-row: 2;" onclick="performAction('p1')">P1</button>
+                <button class="action-btn" style="grid-column: 2; grid-row: 2;" onclick="performAction('p2')">P2</button>
+                <button class="action-btn" style="grid-column: 3; grid-row: 2;" onclick="performAction('p3')">P&D</button>
+            </div>
         </div>
     </div>
 

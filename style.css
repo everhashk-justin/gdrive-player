@@ -146,7 +146,7 @@ main {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding-bottom: 275px; /* 하단 플레이어 바 및 버튼 높이 */
+    padding-bottom: 235px; /* 균형 잡힌 하단 플레이어 바 높이에 맞춰 최적화 */
 }
 
 .panel {
@@ -272,44 +272,54 @@ main {
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(15, 23, 42, 0.95);
+    background: rgba(15, 23, 42, 0.96);
     backdrop-filter: blur(20px);
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 1rem 0.65rem 1rem;
     border-top: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
     z-index: 20;
     box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.player-bar-container {
+    max-width: 920px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
 }
 
 .now-playing-info {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.65rem;
 }
 
 .np-icon {
     color: var(--accent-color);
-    font-size: 1.25rem;
+    font-size: 1.1rem;
 }
 
 .now-playing-text {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
 }
 
 .now-playing-title {
     font-weight: 600;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .now-playing-status {
-    font-size: 0.725rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 /* 프로그레스 바 */
@@ -319,6 +329,7 @@ main {
     gap: 0.5rem;
     font-size: 0.725rem;
     color: var(--text-secondary);
+    width: 100%;
 }
 
 .progress-bar {
@@ -340,21 +351,32 @@ main {
     transition: width 0.05s linear;
 }
 
-/* 컨트롤 버튼들 */
+/* 컨트롤 행 (좌: 배속 | 중: 메인 재생 컨트롤 | 우: 음량) */
+.player-controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    margin: 0.15rem 0;
+}
+
+/* 컨트롤 버튼들 (중앙) */
 .controls {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 1.25rem;
+    gap: 1.15rem;
+    flex: 0 0 auto;
 }
 
 .btn-ctrl {
     background: none;
     border: none;
     color: #e2e8f0;
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     cursor: pointer;
-    padding: 0.35rem;
+    padding: 0.3rem;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -372,21 +394,14 @@ main {
 }
 
 .btn-play {
-    font-size: 2.2rem;
+    font-size: 2.1rem;
     color: var(--accent-color);
 }
 
-/* 부가 컨트롤 (배속 & 음량) */
-.extra-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0 0.25rem;
-}
-
+/* 배속 조절 (좌측) */
 .speed-control {
-    flex: 1;
+    flex: 0 1 210px;
+    min-width: 160px;
     display: flex;
     align-items: center;
     gap: 0.35rem;
@@ -412,8 +427,8 @@ main {
 
 .speed-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 13px;
-    height: 13px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background: var(--accent-color);
     cursor: pointer;
@@ -450,11 +465,13 @@ main {
 }
 .speed-reset-btn:hover { color: var(--accent-color); }
 
-/* 음량 조절 */
+/* 음량 조절 (우측) */
 .volume-control {
-    flex: 1;
+    flex: 0 1 190px;
+    min-width: 140px;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 0.4rem;
     font-size: 0.75rem;
     color: var(--text-secondary);
@@ -478,6 +495,7 @@ main {
 
 .volume-slider {
     flex: 1;
+    max-width: 100px;
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
@@ -489,8 +507,8 @@ main {
 
 .volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 13px;
-    height: 13px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background: var(--accent-color);
     cursor: pointer;
@@ -504,13 +522,38 @@ main {
     font-size: 0.725rem;
 }
 
+/* 모바일/태블릿 반응형 */
+@media (max-width: 720px) {
+    .player-controls-row {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4rem;
+    }
+    .controls {
+        order: 1;
+        width: 100%;
+        margin-bottom: 0.15rem;
+    }
+    .speed-control {
+        order: 2;
+        flex: 1;
+        max-width: none;
+    }
+    .volume-control {
+        order: 3;
+        flex: 1;
+        max-width: none;
+    }
+}
+
 /* 액션 패널 버튼 그리드 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) */
 .action-panel-bottom {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
     grid-template-rows: auto auto;
     gap: 4px;
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
+    width: 100%;
 }
 
 .action-btn {
