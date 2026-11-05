@@ -760,9 +760,11 @@ function stepSpeed(delta) {
 
 function setSpeedStep(idx) {
     STATE.currentSpeedIndex = idx;
-    document.getElementById('speed-slider').value = idx - 3;
+    const slider = document.getElementById('speed-slider');
+    if (slider) slider.value = idx - 3;
     const speedVal = STATE.speedValues[idx];
-    document.getElementById('speed-display').textContent = `${speedVal.toFixed(2).replace(/\.?0+$/, '')}x`;
+    const display = document.getElementById('speed-display');
+    if (display) display.textContent = `${speedVal.toFixed(2).replace(/\.?0+$/, '')}x`;
     applySpeed();
 }
 

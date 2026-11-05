@@ -6,7 +6,7 @@
     <title>Sorting Player (Google Drive)</title>
     <link rel="icon" href="../icon.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.0">
     <!-- Google Identity Services (GIS) SDK -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -80,16 +80,7 @@
     <!-- 하단 고정 플레이어 바 -->
     <div class="player-bar">
         <div class="player-bar-container">
-            <!-- 1. 현재 재생 정보 -->
-            <div class="now-playing-info">
-                <div class="np-icon"><i class="fas fa-music" id="np-icon"></i></div>
-                <div class="now-playing-text">
-                    <div class="now-playing-title" id="np-title">재생 중이 아님</div>
-                    <div class="now-playing-status" id="np-status">대기 중</div>
-                </div>
-            </div>
-
-            <!-- 2. 프로그레스 바 -->
+            <!-- 1. 상단 프로그레스 바 -->
             <div class="progress-container">
                 <span id="time-current">0:00</span>
                 <div class="progress-bar" id="progress-bar" onclick="seek(event)">
@@ -98,19 +89,18 @@
                 <span id="time-total">0:00</span>
             </div>
 
-            <!-- 3. 메인 컨트롤 행 (좌: 배속 | 중: 재생 제어 버튼 | 우: 음량) -->
-            <div class="player-controls-row">
-                <!-- 좌: 배속 조절 -->
-                <div class="speed-control">
-                    <span class="speed-label">배속</span>
-                    <button class="speed-step-btn" onclick="stepSpeed(-1)" title="감소">−</button>
-                    <input type="range" class="speed-slider" id="speed-slider" min="-3" max="3" step="1" value="0" oninput="onSpeedSliderChange(this.value)">
-                    <button class="speed-step-btn" onclick="stepSpeed(1)" title="증가">+</button>
-                    <span class="speed-value" id="speed-display">1.0x</span>
-                    <button class="speed-reset-btn" onclick="setSpeedStep(0)" title="1.0x 초기화">↺</button>
+            <!-- 2. 중앙 컨트롤 바 (좌: 곡 정보 | 중: 재생 제어 버튼 | 우: 배속 & 볼륨) -->
+            <div class="player-main-row">
+                <!-- 좌측: 곡 정보 -->
+                <div class="now-playing-info">
+                    <div class="np-icon"><i class="fas fa-music" id="np-icon"></i></div>
+                    <div class="now-playing-text">
+                        <div class="now-playing-title" id="np-title">재생 중이 아님</div>
+                        <div class="now-playing-status" id="np-status">대기 중</div>
+                    </div>
                 </div>
 
-                <!-- 중: 컨트롤 버튼들 -->
+                <!-- 중앙: 메인 재생 제어 버튼들 -->
                 <div class="controls">
                     <button class="btn-ctrl" id="btn-shuffle" onclick="toggleShuffle()" title="랜덤 재생">
                         <i class="fas fa-random"></i>
@@ -132,17 +122,31 @@
                     </button>
                 </div>
 
-                <!-- 우: 음량 조절 -->
-                <div class="volume-control">
-                    <button class="btn-vol-mute" onclick="toggleMute()" title="음소거 / 해제">
-                        <i class="fas fa-volume-up" id="vol-icon"></i>
-                    </button>
-                    <input type="range" class="volume-slider" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="onVolumeChange(this.value)">
-                    <span class="vol-value" id="vol-display">100%</span>
+                <!-- 우측: 배속 및 음량 서브 컨트롤 -->
+                <div class="sub-controls">
+                    <!-- 배속 조절 (콤팩트 버튼형) -->
+                    <div class="speed-control">
+                        <span class="ctrl-label">배속</span>
+                        <button class="speed-step-btn" onclick="stepSpeed(-1)" title="속도 감소">−</button>
+                        <span class="speed-value" id="speed-display">1.0x</span>
+                        <button class="speed-step-btn" onclick="stepSpeed(1)" title="속도 증가">+</button>
+                        <button class="speed-reset-btn" onclick="setSpeedStep(0)" title="1.0x 초기화">↺</button>
+                    </div>
+
+                    <div class="ctrl-divider"></div>
+
+                    <!-- 음량 조절 -->
+                    <div class="volume-control">
+                        <button class="btn-vol-mute" onclick="toggleMute()" title="음소거 / 해제">
+                            <i class="fas fa-volume-up" id="vol-icon"></i>
+                        </button>
+                        <input type="range" class="volume-slider" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="onVolumeChange(this.value)">
+                        <span class="vol-value" id="vol-display">100%</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- 4. 액션 패널 버튼 그리드 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) -->
+            <!-- 3. 액션 패널 버튼 그리드 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) -->
             <div class="action-panel-bottom">
                 <button class="action-btn" style="grid-column: 1; grid-row: 1;" onclick="performAction('t1')">T1</button>
                 <button class="action-btn" style="grid-column: 2; grid-row: 1;" onclick="performAction('t2')">T2</button>
@@ -259,7 +263,7 @@
     <!-- 토스트 메시지 -->
     <div class="toast" id="toast"></div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2.0"></script>
 </body>
 </html>
 
