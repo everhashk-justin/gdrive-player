@@ -156,8 +156,10 @@ main {
 }
 
 .folder-panel {
-    height: 35%;
-    min-height: 110px;
+    height: auto;
+    max-height: 35%;
+    min-height: 0;
+    flex-shrink: 0;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -525,30 +527,131 @@ main {
     font-size: 0.725rem;
 }
 
-/* 모바일/태블릿 반응형 */
+/* 모바일/태블릿 초슬림 반응형 */
 @media (max-width: 768px) {
-    .player-main-row {
-        flex-direction: column;
+    main {
+        padding-bottom: 168px; /* 모바일 하단 바 높이에 맞춰 목록 스크롤 공간 최대 확보 */
+    }
+
+    .panel-inner {
+        padding: 0.4rem 0.65rem;
+    }
+
+    .item {
+        padding: 0.5rem 0.65rem;
         gap: 0.5rem;
     }
+
+    .player-bar {
+        padding: 0.4rem 0.6rem 0.5rem 0.6rem;
+    }
+
+    .player-bar-container {
+        gap: 0.2rem;
+    }
+
+    /* 1단: 프로그레스 바 슬림화 */
+    .progress-container {
+        font-size: 0.65rem;
+        gap: 0.35rem;
+    }
+
+    .progress-bar {
+        height: 4px;
+    }
+
+    /* 2단: 곡 정보 + 재생 버튼 + 배속/음량을 초슬림 2줄로 압축 */
+    .player-main-row {
+        flex-direction: column;
+        gap: 0.2rem;
+        padding: 0;
+    }
+
+    /* 곡 정보: 얇은 1줄 인라인 */
     .now-playing-info {
         width: 100%;
         max-width: none;
+        gap: 0.35rem;
         justify-content: center;
-        text-align: center;
-    }
-    .now-playing-text {
         align-items: center;
     }
-    .controls {
-        width: 100%;
-        gap: 1.25rem;
+
+    .np-icon {
+        font-size: 0.85rem;
     }
+
+    .now-playing-text {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 0.4rem;
+        overflow: hidden;
+    }
+
+    .now-playing-title {
+        font-size: 0.775rem;
+        max-width: 65vw;
+    }
+
+    .now-playing-status {
+        font-size: 0.65rem;
+    }
+
+    /* 재생 제어 버튼: 콤팩트 */
+    .controls {
+        gap: 0.95rem;
+    }
+
+    .btn-ctrl {
+        font-size: 0.95rem;
+        padding: 0.2rem;
+    }
+
+    .btn-play {
+        font-size: 1.65rem;
+    }
+
+    /* 서브 컨트롤 (배속 & 볼륨): 콤팩트 인라인 */
     .sub-controls {
         width: 100%;
         max-width: none;
         justify-content: center;
-        gap: 1rem;
+        gap: 0.65rem;
+    }
+
+    .ctrl-label {
+        font-size: 0.68rem;
+    }
+
+    .speed-step-btn {
+        width: 18px;
+        height: 18px;
+        font-size: 0.75rem;
+    }
+
+    .speed-value {
+        font-size: 0.7rem;
+        min-width: 24px;
+    }
+
+    .volume-slider {
+        width: 65px;
+        height: 3px;
+    }
+
+    .vol-value {
+        font-size: 0.68rem;
+        min-width: 26px;
+    }
+
+    /* 3단: 액션 버튼 그리드 (높이 29px로 슬림화하여 화면 점유율 대폭 축소) */
+    .action-panel-bottom {
+        gap: 3px;
+        margin-top: 0.1rem;
+    }
+
+    .action-btn {
+        height: 29px;
+        font-size: 11.5px;
     }
 }
 
