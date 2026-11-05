@@ -20,6 +20,7 @@ const STATE = {
     subFolders: [],
     songs: [],
     lyricsMap: new Map(), // filename_without_ext -> { id, name }
+    relatedFilesMap: new Map(), // filename_without_ext (소문자) -> Array<{ id, name, ext }> (wav, mp3, txt, json)
 
     // 재생 상태
     currentIndex: -1,
@@ -46,6 +47,19 @@ const STATE = {
 
 // 지원 오디오 확장자
 const AUDIO_EXTS = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma'];
+// 연계 처리 지원 대상 4종 확장자 (음원, 가사, 메타데이터 JSON 등)
+const TARGET_ASSOCIATED_EXTS = ['.wav', '.mp3', '.txt', '.json'];
+
+// 파일명에서 확장자를 제외한 베이스 이름(stem)과 확장자(ext) 분리
+function getFileStemAndExt(filename) {
+    if (!filename) return { stem: '', ext: '' };
+    const lastDot = filename.lastIndexOf('.');
+    if (lastDot <= 0) return { stem: filename, ext: '' };
+    return {
+        stem: filename.substring(0, lastDot),
+        ext: filename.substring(lastDot).toLowerCase()
+    };
+}
 
 // --- 2. 설정 관리 (LocalStorage) ---
 const CONFIG_KEY = 'gdrive_player_config_v1';
@@ -119,9 +133,9 @@ function initGisAuth() {
         callback: handleTokenResponse
     });
 
-    // 기존 세션에 유효한 토큰이 남아있는지 확인
-    const savedToken = sessionStorage.getItem('gdrive_token');
-    const savedExpires = sessionStorage.getItem('gdrive_token_expires');
+    // 브라우저 로컬 저장소에 유효한 토큰이 남아있는지 확인 (브라우저를 닫아도 유지)
+    const savedToken = localStorage.getItem('gdrive_token');
+    const savedExpires = localStorage.getItem('gdrive_token_expires');
     if (savedToken && savedExpires && Date.now() < parseInt(savedExpires, 10)) {
         STATE.accessToken = savedToken;
         STATE.tokenExpiresAt = parseInt(savedExpires, 10);
@@ -149,8 +163,9 @@ function handleAuthClick() {
             initGisAuth();
         }
         if (STATE.tokenClient) {
-            // 사용자 동기화 팝업
-            STATE.tokenClient.requestAccessToken({ prompt: 'consent' });
+            // 이전에 로그인한 적이 있으면 prompt를 비워 번거로운 동의 절차 없이 가볍게 갱신
+            const hasLoggedInBefore = localStorage.getItem('gdrive_has_logged_in') === 'true';
+            STATE.tokenClient.requestAccessToken({ prompt: hasLoggedInBefore ? '' : 'consent' });
         } else {
             showToast('Google 인증 라이브러리를 초기화하는 중입니다. 잠시 후 다시 시도해주세요.', 'error');
         }
@@ -160,6 +175,11 @@ function handleAuthClick() {
 function handleTokenResponse(resp) {
     if (resp.error) {
         console.error('Google Auth Error:', resp);
+        // 만약 prompt: '' 로 자동 갱신 실패 시 consent로 재시도
+        if (resp.error === 'interaction_required' && STATE.tokenClient) {
+            STATE.tokenClient.requestAccessToken({ prompt: 'consent' });
+            return;
+        }
         showToast('구글 로그인에 실패했습니다: ' + resp.error, 'error');
         return;
     }
@@ -167,8 +187,9 @@ function handleTokenResponse(resp) {
     // 만료 시간 기록 (유효시간 expiresIn초, 보통 3600초)
     const expiresIn = (resp.expires_in || 3500) * 1000;
     STATE.tokenExpiresAt = Date.now() + expiresIn;
-    sessionStorage.setItem('gdrive_token', STATE.accessToken);
-    sessionStorage.setItem('gdrive_token_expires', STATE.tokenExpiresAt.toString());
+    localStorage.setItem('gdrive_token', STATE.accessToken);
+    localStorage.setItem('gdrive_token_expires', STATE.tokenExpiresAt.toString());
+    localStorage.setItem('gdrive_has_logged_in', 'true');
 
     updateAuthUI(true);
     showToast('구글 계정 인증이 완료되었습니다.', 'success');
@@ -181,8 +202,9 @@ function logout() {
     }
     STATE.accessToken = null;
     STATE.tokenExpiresAt = 0;
-    sessionStorage.removeItem('gdrive_token');
-    sessionStorage.removeItem('gdrive_token_expires');
+    localStorage.removeItem('gdrive_token');
+    localStorage.removeItem('gdrive_token_expires');
+    localStorage.removeItem('gdrive_has_logged_in');
     updateAuthUI(false);
     showToast('로그아웃되었습니다.', 'success');
     
@@ -285,6 +307,7 @@ async function fetchFolderContents(folderId) {
     const subFolders = [];
     const audioFiles = [];
     const lyricsMap = new Map();
+    const relatedFilesMap = new Map(); // stem.toLowerCase() -> Array<{ id, name, ext, mimeType, size }>
 
     let pageToken = null;
     do {
@@ -302,14 +325,32 @@ async function fetchFolderContents(folderId) {
                 if (file.mimeType === 'application/vnd.google-apps.folder') {
                     subFolders.push(file);
                 } else {
-                    const lowerName = file.name.toLowerCase();
-                    const isAudio = AUDIO_EXTS.some(ext => lowerName.endsWith(ext));
+                    const { stem, ext } = getFileStemAndExt(file.name);
+                    const lowerStem = stem.toLowerCase();
+
+                    // 4종 연계 파일(.wav, .mp3, .txt, .json) 수집
+                    if (TARGET_ASSOCIATED_EXTS.includes(ext)) {
+                        if (!relatedFilesMap.has(lowerStem)) {
+                            relatedFilesMap.set(lowerStem, []);
+                        }
+                        relatedFilesMap.get(lowerStem).push({
+                            id: file.id,
+                            name: file.name,
+                            ext: ext,
+                            mimeType: file.mimeType,
+                            size: file.size
+                        });
+                    }
+
+                    // 음원 재생 목록 대상
+                    const isAudio = AUDIO_EXTS.includes(ext);
                     if (isAudio) {
                         audioFiles.push(file);
-                    } else if (lowerName.endsWith('.txt')) {
-                        // 가사 파일 매핑
-                        const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
-                        lyricsMap.set(baseName.toLowerCase(), file);
+                    }
+
+                    // 가사 파일 대상
+                    if (ext === '.txt') {
+                        lyricsMap.set(lowerStem, file);
                     }
                 }
             }
@@ -317,7 +358,7 @@ async function fetchFolderContents(folderId) {
         pageToken = data.nextPageToken;
     } while (pageToken);
 
-    return { subFolders, audioFiles, lyricsMap };
+    return { subFolders, audioFiles, lyricsMap, relatedFilesMap };
 }
 
 // 음원 바이너리 Blob 다운로드
@@ -394,6 +435,7 @@ async function loadFolder(folderId) {
         STATE.subFolders = contents.subFolders;
         STATE.songs = contents.audioFiles;
         STATE.lyricsMap = contents.lyricsMap;
+        STATE.relatedFilesMap = contents.relatedFilesMap;
 
         // 이름순 정렬
         sortSongs();
@@ -856,6 +898,54 @@ function setupMediaSession(title) {
 }
 
 // --- 6. 파일 액션 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) ---
+
+// 현재 곡의 베이스 파일명과 연계된 모든 파일(wav, mp3, txt, json) 목록 반환
+function getAssociatedFiles(song) {
+    if (!song) return [];
+    const { stem } = getFileStemAndExt(song.name);
+    const key = stem.toLowerCase();
+    const list = STATE.relatedFilesMap.get(key) || [];
+
+    // 만약 relatedFilesMap에 현재 곡 자체가 없는 경우 대비
+    const hasCurrent = list.some(f => f.id === song.id);
+    if (!hasCurrent) {
+        return [{ id: song.id, name: song.name, ext: getFileStemAndExt(song.name).ext }, ...list];
+    }
+    return list;
+}
+
+// 작업 후 연계된 모든 곡(동일 stem을 가진 wav, mp3)을 STATE.songs에서 제거하고 다음 곡 재생
+function removeAssociatedSongsFromListAndAdvance(baseStem) {
+    const lowerStem = baseStem.toLowerCase();
+
+    // 현재 선택된 곡의 stem과 동일한 곡들을 모두 필터링하여 제거
+    STATE.songs = STATE.songs.filter(song => {
+        const { stem } = getFileStemAndExt(song.name);
+        return stem.toLowerCase() !== lowerStem;
+    });
+
+    // 맵에서도 정리
+    STATE.relatedFilesMap.delete(lowerStem);
+    STATE.lyricsMap.delete(lowerStem);
+
+    renderSongList();
+
+    if (STATE.songs.length === 0) {
+        audio.pause();
+        audio.src = '';
+        STATE.isPlaying = false;
+        STATE.currentIndex = -1;
+        document.getElementById('np-title').textContent = '재생 중이 아님';
+        document.getElementById('np-status').textContent = '대기 중';
+        updatePlayBtnUI();
+        return;
+    }
+
+    // 다음 곡 인덱스 유지
+    const nextIdx = STATE.currentIndex < STATE.songs.length ? STATE.currentIndex : 0;
+    playSongAtIndex(nextIdx);
+}
+
 async function performAction(actionType) {
     if (STATE.currentIndex === -1 || STATE.currentIndex >= STATE.songs.length) {
         showToast('선택된 곡이 없습니다.', 'error');
@@ -863,23 +953,21 @@ async function performAction(actionType) {
     }
 
     const currentSong = STATE.songs[STATE.currentIndex];
-    const baseName = currentSong.name.substring(0, currentSong.name.lastIndexOf('.'));
-    const txtFile = STATE.lyricsMap.get(baseName.toLowerCase());
+    const { stem: baseStem } = getFileStemAndExt(currentSong.name);
+    const associatedFiles = getAssociatedFiles(currentSong);
 
     const cfg = loadConfig();
 
     if (actionType === 'del') {
-        if (!confirm(`'${currentSong.name}' 파일을 구글 드라이브 휴지통으로 이동하시겠습니까?`)) {
+        const fileNames = associatedFiles.map(f => f.name).join('\n - ');
+        if (!confirm(`다음 관련 파일(최대 4종: wav, mp3, txt, json)을 모두 구글 드라이브 휴지통으로 이동하시겠습니까?\n\n - ${fileNames}`)) {
             return;
         }
-        showLoading('파일을 삭제(휴지통 이동) 중입니다...');
+        showLoading(`관련 파일(총 ${associatedFiles.length}개)을 삭제(휴지통 이동) 중입니다...`);
         try {
-            await trashDriveFile(currentSong.id);
-            if (txtFile) {
-                await trashDriveFile(txtFile.id).catch(() => {});
-            }
-            showToast('파일이 휴지통으로 이동되었습니다.', 'success');
-            removeSongFromListAndAdvance(STATE.currentIndex);
+            await Promise.allSettled(associatedFiles.map(f => trashDriveFile(f.id)));
+            showToast(`삭제 완료: 총 ${associatedFiles.length}개 관련 파일(wav/mp3/txt/json)이 휴지통으로 이동되었습니다.`, 'success');
+            removeAssociatedSongsFromListAndAdvance(baseStem);
         } catch (e) {
             console.error('삭제 실패:', e);
             showToast('삭제 실패: ' + e.message, 'error');
@@ -891,7 +979,7 @@ async function performAction(actionType) {
 
     // 대상 폴더 ID 매핑
     let targetFolderId = '';
-    let isTxtOnly = false; // T&D, P&D 여부
+    let isTxtOnly = false; // T&D (T3), P&D (P3) 여부
 
     switch (actionType) {
         case 't1': targetFolderId = extractFolderId(cfg.t1); break;
@@ -914,25 +1002,30 @@ async function performAction(actionType) {
         return;
     }
 
-    showLoading(`${actionType.toUpperCase()} 작업을 처리 중입니다...`);
+    showLoading(`${actionType.toUpperCase()} 작업을 처리 중입니다... (관련 파일 ${associatedFiles.length}개)`);
     try {
         if (isTxtOnly) {
-            // T&D (T3) / P&D (P3): txt 파일만 지정 폴더로 이동, 음원은 휴지통으로 이동
-            if (txtFile) {
-                await moveDriveFile(txtFile.id, STATE.currentFolderId, targetFolderId);
+            // T&D (T3) / P&D (P3): txt 파일만 대상 폴더로 이동, 음원(wav, mp3) 및 json 파일은 휴지통으로 이동
+            const txtFiles = associatedFiles.filter(f => f.ext === '.txt');
+            const otherFiles = associatedFiles.filter(f => f.ext !== '.txt');
+
+            for (const tf of txtFiles) {
+                await moveDriveFile(tf.id, STATE.currentFolderId, targetFolderId);
             }
-            await trashDriveFile(currentSong.id);
-            showToast(`${actionType.toUpperCase()}: 가사는 대상 폴더로 이동하고 음원은 삭제되었습니다.`, 'success');
+            for (const ofile of otherFiles) {
+                await trashDriveFile(ofile.id);
+            }
+
+            showToast(`${actionType.toUpperCase()}: txt 파일은 이동하고, 음원(wav/mp3) 및 json 파일은 삭제되었습니다.`, 'success');
         } else {
-            // 일반 이동: 음원 및 가사 파일 모두 이동
-            await moveDriveFile(currentSong.id, STATE.currentFolderId, targetFolderId);
-            if (txtFile) {
-                await moveDriveFile(txtFile.id, STATE.currentFolderId, targetFolderId).catch(() => {});
+            // 일반 이동 (T1, T2, P1, P2): 모든 연계 파일(wav, mp3, txt, json)을 대상 폴더로 이동
+            for (const f of associatedFiles) {
+                await moveDriveFile(f.id, STATE.currentFolderId, targetFolderId);
             }
-            showToast(`${actionType.toUpperCase()} 폴더로 이동 완료!`, 'success');
+            showToast(`${actionType.toUpperCase()} 이동 완료: 총 ${associatedFiles.length}개 관련 파일 이동`, 'success');
         }
 
-        removeSongFromListAndAdvance(STATE.currentIndex);
+        removeAssociatedSongsFromListAndAdvance(baseStem);
 
     } catch (e) {
         console.error('파일 이동 실패:', e);
@@ -940,27 +1033,6 @@ async function performAction(actionType) {
     } finally {
         hideLoading();
     }
-}
-
-// 작업 후 목록에서 제거하고 다음 곡 재생
-function removeSongFromListAndAdvance(index) {
-    STATE.songs.splice(index, 1);
-    renderSongList();
-
-    if (STATE.songs.length === 0) {
-        audio.pause();
-        audio.src = '';
-        STATE.isPlaying = false;
-        STATE.currentIndex = -1;
-        document.getElementById('np-title').textContent = '재생 중이 아님';
-        document.getElementById('np-status').textContent = '대기 중';
-        updatePlayBtnUI();
-        return;
-    }
-
-    // 다음 곡 인덱스 유지 (목록이 당겨졌으므로 index가 다음 곡)
-    const nextIdx = index < STATE.songs.length ? index : 0;
-    playSongAtIndex(nextIdx);
 }
 
 // Prefix 모달 열기
@@ -994,23 +1066,38 @@ function applyPrefixCustom() {
 
 async function applyPrefix(prefix) {
     closePrefixModal();
-    const song = STATE.songs[STATE.currentIndex];
-    const newSongName = `${prefix}${song.name}`;
-    
-    const baseName = song.name.substring(0, song.name.lastIndexOf('.'));
-    const txtFile = STATE.lyricsMap.get(baseName.toLowerCase());
+    if (STATE.currentIndex === -1 || STATE.currentIndex >= STATE.songs.length) {
+        showToast('선택된 곡이 없습니다.', 'error');
+        return;
+    }
 
-    showLoading(`Prefix 적용 중: ${newSongName}...`);
+    const currentSong = STATE.songs[STATE.currentIndex];
+    const { stem: baseStem } = getFileStemAndExt(currentSong.name);
+    const associatedFiles = getAssociatedFiles(currentSong);
+
+    showLoading(`Prefix 적용 중: ${prefix}... (총 ${associatedFiles.length}개 파일)`);
     try {
-        await renameDriveFile(song.id, newSongName);
-        song.name = newSongName;
-
-        if (txtFile) {
-            const newTxtName = `${prefix}${txtFile.name}`;
-            await renameDriveFile(txtFile.id, newTxtName).catch(() => {});
+        for (const file of associatedFiles) {
+            const newName = `${prefix}${file.name}`;
+            await renameDriveFile(file.id, newName);
+            file.name = newName;
         }
 
-        showToast(`이름 변경 완료: ${newSongName}`, 'success');
+        // STATE.songs 내 이름도 갱신
+        for (const s of STATE.songs) {
+            const match = associatedFiles.find(af => af.id === s.id);
+            if (match) {
+                s.name = match.name;
+            }
+        }
+
+        // relatedFilesMap 키 갱신
+        STATE.relatedFilesMap.delete(baseStem.toLowerCase());
+        const newStem = `${prefix}${baseStem}`;
+        STATE.relatedFilesMap.set(newStem.toLowerCase(), associatedFiles);
+
+        renderSongList();
+        showToast(`이름 변경 완료: ${prefix} 적용 (총 ${associatedFiles.length}개 파일)`, 'success');
 
         // 기존 데스크톱/웹 플레이어 규칙: Prefix 적용 후 현재 곡 정지 및 다음 곡 자동 재생
         audio.pause();
