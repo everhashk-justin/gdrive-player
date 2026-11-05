@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sorting Player (Google Drive)</title>
+    <link rel="icon" href="../icon.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Identity Services (GIS) SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <!-- 상단 헤더 -->
+    <header>
+        <div class="header-left">
+            <div class="app-title">
+                <i class="fab fa-google-drive"></i> GDrive Player
+            </div>
+            <div class="path-display" id="path-display" title="현재 폴더">설정에서 시작 폴더를 지정하세요</div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-icon btn-auth-login" id="btn-auth" onclick="handleAuthClick()">
+                <i class="fab fa-google"></i> <span id="auth-btn-text">로그인</span>
+            </button>
+            <button class="btn-icon" onclick="openConfigModal()" title="환경 설정">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 상단 탐색/가사 탭 -->
+    <div class="view-tabs">
+        <button class="tab-btn active" id="tab-player" onclick="switchView('player')">
+            <i class="fas fa-list-music"></i> 목록
+        </button>
+        <button class="tab-btn" id="tab-lyrics" onclick="switchView('lyrics')">
+            <i class="fas fa-align-left"></i> 가사
+        </button>
+    </div>
+
+    <!-- 메인 패널 -->
+    <main id="main">
+        <!-- 폴더 패널 -->
+        <div class="panel folder-panel" id="folder-panel">
+            <div class="panel-inner">
+                <div class="section-header">
+                    <span class="section-title"><i class="fas fa-folder"></i> 하위 폴더</span>
+                    <span class="section-count" id="folder-count">0개</span>
+                </div>
+                <div class="item-list" id="folder-list">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; padding: 0.5rem;">
+                        로그인 후 폴더를 선택하면 하위 폴더가 표시됩니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 곡 목록 패널 -->
+        <div class="panel song-panel" id="song-panel">
+            <div class="panel-inner">
+                <div class="section-header">
+                    <span class="section-title"><i class="fas fa-music"></i> 음원 파일</span>
+                    <span class="section-count" id="song-count">0곡</span>
+                </div>
+                <div class="item-list" id="file-list">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem; padding: 0.5rem;">
+                        폴더를 로드해 주세요.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 가사 뷰 패널 -->
+        <div class="lyrics-panel" id="lyrics-panel">
+            <div id="lyrics-content" style="color: var(--text-secondary);">재생 중인 곡의 가사가 없습니다.</div>
+        </div>
+    </main>
+
+    <!-- 하단 고정 플레이어 바 -->
+    <div class="player-bar">
+        <!-- 현재 재생 정보 -->
+        <div class="now-playing-info">
+            <div class="np-icon"><i class="fas fa-music" id="np-icon"></i></div>
+            <div class="now-playing-text">
+                <div class="now-playing-title" id="np-title">재생 중이 아님</div>
+                <div class="now-playing-status" id="np-status">대기 중</div>
+            </div>
+        </div>
+
+        <!-- 프로그레스 바 -->
+        <div class="progress-container">
+            <span id="time-current">0:00</span>
+            <div class="progress-bar" id="progress-bar" onclick="seek(event)">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <span id="time-total">0:00</span>
+        </div>
+
+        <!-- 컨트롤 버튼 -->
+        <div class="controls">
+            <button class="btn-ctrl" id="btn-shuffle" onclick="toggleShuffle()" title="랜덤 재생">
+                <i class="fas fa-random"></i>
+            </button>
+            <button class="btn-ctrl" onclick="playPrev()" title="이전 곡">
+                <i class="fas fa-step-backward"></i>
+            </button>
+            <button class="btn-ctrl btn-play" id="btn-play" onclick="togglePlay()" title="재생 / 일시정지">
+                <i class="fas fa-play-circle" id="play-icon"></i>
+            </button>
+            <button class="btn-ctrl" onclick="playNext()" title="다음 곡">
+                <i class="fas fa-step-forward"></i>
+            </button>
+            <button class="btn-ctrl" id="btn-repeat" onclick="toggleRepeat()" title="반복 재생 (Off / 전체 / 1곡)">
+                <i class="fas fa-redo" id="repeat-icon"></i>
+            </button>
+            <button class="btn-ctrl" id="btn-sort" onclick="toggleSort()" title="정렬">
+                <i class="fas fa-sort-alpha-down" id="sort-icon"></i>
+            </button>
+        </div>
+
+        <!-- 배속 조절 -->
+        <div class="speed-control">
+            <span class="speed-label">배속</span>
+            <button class="speed-step-btn" onclick="stepSpeed(-1)" title="감소">−</button>
+            <input type="range" class="speed-slider" id="speed-slider" min="-3" max="3" step="1" value="0" oninput="onSpeedSliderChange(this.value)">
+            <button class="speed-step-btn" onclick="stepSpeed(1)" title="증가">+</button>
+            <span class="speed-value" id="speed-display">1.0x</span>
+            <button class="speed-reset-btn" onclick="setSpeedStep(0)" title="1.0x 초기화">↺ 1x</button>
+        </div>
+
+        <!-- 액션 패널 버튼 그리드 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) -->
+        <div class="action-panel-bottom">
+            <button class="action-btn" style="grid-column: 1; grid-row: 1;" onclick="performAction('t1')">T1</button>
+            <button class="action-btn" style="grid-column: 2; grid-row: 1;" onclick="performAction('t2')">T2</button>
+            <button class="action-btn" style="grid-column: 3; grid-row: 1;" onclick="performAction('t3')">T&D</button>
+            <button class="action-btn btn-del-fixed" onclick="performAction('del')">Del</button>
+            <button class="action-btn btn-prefix-fixed" onclick="openPrefixModal()">Prefix</button>
+
+            <button class="action-btn" style="grid-column: 1; grid-row: 2;" onclick="performAction('p1')">P1</button>
+            <button class="action-btn" style="grid-column: 2; grid-row: 2;" onclick="performAction('p2')">P2</button>
+            <button class="action-btn" style="grid-column: 3; grid-row: 2;" onclick="performAction('p3')">P&D</button>
+        </div>
+    </div>
+
+    <!-- 숨겨진 오디오 엘리먼트 -->
+    <audio id="audio-player" preload="auto"></audio>
+
+    <!-- 환경 설정 모달 -->
+    <div class="modal" id="config-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> Google Drive 설정</h3>
+                <button class="modal-close" onclick="closeConfigModal()">&times;</button>
+            </div>
+            
+            <div class="input-group">
+                <label>Google OAuth 2.0 Client ID (필수)</label>
+                <input type="text" id="cfg-client-id" placeholder="예: 123456789-xxx.apps.googleusercontent.com">
+                <div class="input-desc">Google Cloud Console에서 생성한 웹 애플리케이션 클라이언트 ID입니다.</div>
+            </div>
+
+            <div class="input-group">
+                <label>시작 폴더 ID 또는 구글드라이브 URL (기본 재생 폴더)</label>
+                <input type="text" id="cfg-root-folder" placeholder="폴더 ID 또는 브라우저 주소창 URL 복사 붙여넣기">
+                <div class="input-desc">URL 전체를 붙여넣어도 자동으로 폴더 ID만 추출됩니다.</div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+
+            <div class="input-group">
+                <label>T1 폴더 ID / URL</label>
+                <input type="text" id="cfg-t1" placeholder="T1 분류 대상 폴더 ID 또는 URL">
+            </div>
+            <div class="input-group">
+                <label>T2 폴더 ID / URL</label>
+                <input type="text" id="cfg-t2" placeholder="T2 분류 대상 폴더 ID 또는 URL">
+            </div>
+            <div class="input-group">
+                <label>T&D (T3) 가사 이동 대상 폴더 ID / URL</label>
+                <input type="text" id="cfg-t3" placeholder="가사만 이동되고 음원은 삭제됩니다">
+            </div>
+
+            <div class="input-group">
+                <label>P1 폴더 ID / URL</label>
+                <input type="text" id="cfg-p1" placeholder="P1 분류 대상 폴더 ID 또는 URL">
+            </div>
+            <div class="input-group">
+                <label>P2 폴더 ID / URL</label>
+                <input type="text" id="cfg-p2" placeholder="P2 분류 대상 폴더 ID 또는 URL">
+            </div>
+            <div class="input-group">
+                <label>P&D (P3) 가사 이동 대상 폴더 ID / URL</label>
+                <input type="text" id="cfg-p3" placeholder="가사만 이동되고 음원은 삭제됩니다">
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeConfigModal()">취소</button>
+                <button class="btn-primary" onclick="saveConfig()">저장 및 새로고침</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 접두사(Prefix) 모달 -->
+    <div class="modal" id="prefix-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-tag"></i> Prefix (접두사) 추가</h3>
+                <button class="modal-close" onclick="closePrefixModal()">&times;</button>
+            </div>
+            
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                현재 곡: <span id="prefix-target-title" style="color: white; font-weight: bold;">-</span>
+            </div>
+
+            <div class="prefix-grid">
+                <button class="prefix-opt-btn" onclick="applyPrefixQuick('1')">1</button>
+                <button class="prefix-opt-btn" onclick="applyPrefixQuick('2')">2</button>
+                <button class="prefix-opt-btn" onclick="applyPrefixQuick('3')">3</button>
+                <button class="prefix-opt-btn" onclick="applyPrefixQuick('4')">4</button>
+                <button class="prefix-opt-btn" onclick="applyPrefixQuick('5')">5</button>
+                <button class="prefix-opt-btn" onclick="applyPrefixQuick('6')">6</button>
+                <button class="prefix-opt-btn" onclick="applyPrefixQuick('7')">7</button>
+                <button class="prefix-opt-btn" onclick="applyPrefixQuick('8')">8</button>
+            </div>
+
+            <div class="input-group">
+                <label>직접 입력</label>
+                <input type="text" id="prefix-custom-input" placeholder="예: [완료] 또는 01_">
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closePrefixModal()">취소</button>
+                <button class="btn-primary" onclick="applyPrefixCustom()">적용 및 다음 곡</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로딩 오버레이 -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loading-text">로딩 중...</div>
+    </div>
+
+    <!-- 토스트 메시지 -->
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
