@@ -119,14 +119,26 @@
             </button>
         </div>
 
-        <!-- 배속 조절 -->
-        <div class="speed-control">
-            <span class="speed-label">배속</span>
-            <button class="speed-step-btn" onclick="stepSpeed(-1)" title="감소">−</button>
-            <input type="range" class="speed-slider" id="speed-slider" min="-3" max="3" step="1" value="0" oninput="onSpeedSliderChange(this.value)">
-            <button class="speed-step-btn" onclick="stepSpeed(1)" title="증가">+</button>
-            <span class="speed-value" id="speed-display">1.0x</span>
-            <button class="speed-reset-btn" onclick="setSpeedStep(0)" title="1.0x 초기화">↺ 1x</button>
+        <!-- 부가 컨트롤 (배속 & 음량) -->
+        <div class="extra-controls">
+            <!-- 배속 조절 -->
+            <div class="speed-control">
+                <span class="speed-label">배속</span>
+                <button class="speed-step-btn" onclick="stepSpeed(-1)" title="감소">−</button>
+                <input type="range" class="speed-slider" id="speed-slider" min="-3" max="3" step="1" value="0" oninput="onSpeedSliderChange(this.value)">
+                <button class="speed-step-btn" onclick="stepSpeed(1)" title="증가">+</button>
+                <span class="speed-value" id="speed-display">1.0x</span>
+                <button class="speed-reset-btn" onclick="setSpeedStep(0)" title="1.0x 초기화">↺</button>
+            </div>
+
+            <!-- 음량 조절 -->
+            <div class="volume-control">
+                <button class="btn-vol-mute" onclick="toggleMute()" title="음소거 / 해제">
+                    <i class="fas fa-volume-up" id="vol-icon"></i>
+                </button>
+                <input type="range" class="volume-slider" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="onVolumeChange(this.value)">
+                <span class="vol-value" id="vol-display">100%</span>
+            </div>
         </div>
 
         <!-- 액션 패널 버튼 그리드 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) -->

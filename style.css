@@ -376,19 +376,27 @@ main {
     color: var(--accent-color);
 }
 
-/* 배속 조절 */
-.speed-control {
+/* 부가 컨트롤 (배속 & 음량) */
+.extra-controls {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0 0.25rem;
+}
+
+.speed-control {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
     font-size: 0.75rem;
     color: var(--text-secondary);
-    padding: 0 0.25rem;
 }
 
 .speed-label {
     font-weight: bold;
-    min-width: 28px;
+    min-width: 24px;
 }
 
 .speed-slider {
@@ -404,8 +412,8 @@ main {
 
 .speed-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     border-radius: 50%;
     background: var(--accent-color);
     cursor: pointer;
@@ -415,10 +423,10 @@ main {
     background: rgba(255, 255, 255, 0.1);
     border: none;
     color: white;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     border-radius: 4px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -426,7 +434,7 @@ main {
 }
 
 .speed-value {
-    min-width: 32px;
+    min-width: 28px;
     text-align: center;
     font-weight: bold;
     color: var(--accent-color);
@@ -438,9 +446,63 @@ main {
     color: var(--text-secondary);
     font-size: 0.7rem;
     cursor: pointer;
-    padding: 2px 4px;
+    padding: 2px 2px;
 }
 .speed-reset-btn:hover { color: var(--accent-color); }
+
+/* 음량 조절 */
+.volume-control {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.btn-vol-mute {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 0 0.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s;
+}
+.btn-vol-mute:hover {
+    color: var(--accent-color);
+}
+
+.volume-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+}
+
+.vol-value {
+    min-width: 32px;
+    text-align: right;
+    font-weight: bold;
+    color: var(--accent-color);
+    font-size: 0.725rem;
+}
 
 /* 액션 패널 버튼 그리드 (T1, T2, T&D, P1, P2, P&D, Del, Prefix) */
 .action-panel-bottom {

@@ -35,6 +35,11 @@ const STATE = {
     speedValues: [0.75, 0.85, 0.9, 1.0, 1.1, 1.25, 1.5],
     currentSpeedIndex: 3, // 1.0x 기본값
 
+    // 음량 상태
+    volume: 1.0,
+    isMuted: false,
+    lastVolume: 1.0,
+
     // 현재 재생 중인 Blob URL (메모리 해제 관리)
     currentBlobUrl: null
 };
@@ -766,6 +771,72 @@ function applySpeed() {
     audio.playbackRate = speedVal;
 }
 
+// 음량(볼륨) 조절
+function onVolumeChange(val) {
+    const v = parseFloat(val);
+    audio.volume = v;
+    STATE.volume = v;
+    STATE.isMuted = (v === 0);
+    if (v > 0) {
+        STATE.lastVolume = v;
+    }
+    updateVolumeUI();
+    saveVolumeSetting(v);
+}
+
+function toggleMute() {
+    if (STATE.isMuted || audio.volume === 0) {
+        // 음소거 해제 -> 이전 볼륨 복원
+        const restoreVol = STATE.lastVolume > 0 ? STATE.lastVolume : 1.0;
+        audio.volume = restoreVol;
+        STATE.volume = restoreVol;
+        STATE.isMuted = false;
+    } else {
+        // 음소거 실행
+        STATE.lastVolume = audio.volume > 0 ? audio.volume : 1.0;
+        audio.volume = 0;
+        STATE.volume = 0;
+        STATE.isMuted = true;
+    }
+    updateVolumeUI();
+    saveVolumeSetting(audio.volume);
+}
+
+function updateVolumeUI() {
+    const slider = document.getElementById('vol-slider');
+    const display = document.getElementById('vol-display');
+    const icon = document.getElementById('vol-icon');
+
+    if (slider) slider.value = audio.volume;
+    if (display) display.textContent = `${Math.round(audio.volume * 100)}%`;
+
+    if (icon) {
+        if (audio.volume === 0 || STATE.isMuted) {
+            icon.className = 'fas fa-volume-mute';
+        } else if (audio.volume < 0.5) {
+            icon.className = 'fas fa-volume-down';
+        } else {
+            icon.className = 'fas fa-volume-up';
+        }
+    }
+}
+
+function saveVolumeSetting(vol) {
+    const cfg = loadConfig();
+    cfg.volume = vol;
+    saveConfigToStorage(cfg);
+}
+
+function initVolumeFromConfig() {
+    const cfg = loadConfig();
+    const savedVol = typeof cfg.volume === 'number' ? cfg.volume : 1.0;
+    audio.volume = savedVol;
+    STATE.volume = savedVol;
+    STATE.lastVolume = savedVol > 0 ? savedVol : 1.0;
+    STATE.isMuted = (savedVol === 0);
+    updateVolumeUI();
+}
+
 // MediaSession 모바일 잠금화면 연동
 function setupMediaSession(title) {
     if ('mediaSession' in navigator) {
@@ -1037,6 +1108,15 @@ window.addEventListener('keydown', (e) => {
     } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
         playPrev();
+    } else if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        onVolumeChange(Math.min(1.0, audio.volume + 0.05));
+    } else if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        onVolumeChange(Math.max(0.0, audio.volume - 0.05));
+    } else if (e.code === 'KeyM') {
+        e.preventDefault();
+        toggleMute();
     } else if (e.code === 'Delete') {
         e.preventDefault();
         performAction('del');
@@ -1045,6 +1125,7 @@ window.addEventListener('keydown', (e) => {
 
 // 초기화 시작
 window.addEventListener('DOMContentLoaded', () => {
+    initVolumeFromConfig();
     initGisAuth();
 });
 
