@@ -77,7 +77,8 @@ function getDefaultConfig() {
         volume: 1.0,
         speedIndex: 3,
         repeatMode: 0,
-        isShuffle: false
+        isShuffle: false,
+        keepScreenAwake: true
     };
 }
 
@@ -753,8 +754,60 @@ function toggleRepeat() {
     }
 }
 
+// --- Screen Wake Lock API (재생 중 스마트폰 화면 꺼짐 방지) ---
+let wakeLockSentinel = null;
+
+async function requestWakeLock() {
+    const cfg = loadConfig();
+    if (cfg.keepScreenAwake === false) return;
+
+    if ('wakeLock' in navigator) {
+        try {
+            if (wakeLockSentinel !== null && !wakeLockSentinel.released) {
+                return;
+            }
+            wakeLockSentinel = await navigator.wakeLock.request('screen');
+            wakeLockSentinel.addEventListener('release', () => {
+                wakeLockSentinel = null;
+            });
+            console.log('[WakeLock] 화면 꺼짐 방지 활성화');
+        } catch (err) {
+            console.warn('[WakeLock] 화면 꺼짐 방지 요청 실패:', err);
+        }
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLockSentinel !== null) {
+        wakeLockSentinel.release()
+            .then(() => { wakeLockSentinel = null; })
+            .catch(() => { wakeLockSentinel = null; });
+    }
+}
+
+// 오디오 재생 / 일시정지 이벤트와 연동
+audio.addEventListener('play', () => {
+    STATE.isPlaying = true;
+    updatePlayBtnUI();
+    requestWakeLock();
+});
+
+audio.addEventListener('pause', () => {
+    STATE.isPlaying = false;
+    updatePlayBtnUI();
+    releaseWakeLock();
+});
+
+// 브라우저 탭 복귀 시 음악 재생 중이면 Wake Lock 재요청
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && STATE.isPlaying && !audio.paused) {
+        await requestWakeLock();
+    }
+});
+
 // 오디오 재생 완료 시
 audio.addEventListener('ended', () => {
+    releaseWakeLock();
     if (STATE.repeatMode === 2) {
         // 한 곡 반복
         audio.currentTime = 0;
@@ -1132,6 +1185,7 @@ function openConfigModal() {
     document.getElementById('cfg-p1').value = cfg.p1 || '';
     document.getElementById('cfg-p2').value = cfg.p2 || '';
     document.getElementById('cfg-p3').value = cfg.p3 || '';
+    document.getElementById('cfg-keep-screen').checked = cfg.keepScreenAwake !== false;
     document.getElementById('config-modal').classList.add('active');
 }
 
@@ -1149,6 +1203,7 @@ function saveConfig() {
     cfg.p1 = document.getElementById('cfg-p1').value.trim();
     cfg.p2 = document.getElementById('cfg-p2').value.trim();
     cfg.p3 = document.getElementById('cfg-p3').value.trim();
+    cfg.keepScreenAwake = document.getElementById('cfg-keep-screen').checked;
 
     saveConfigToStorage(cfg);
     closeConfigModal();
