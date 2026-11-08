@@ -466,13 +466,19 @@ main {
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     cursor: pointer;
     padding: 1px 3px;
     border-radius: 3px;
-    transition: color 0.15s;
+    transition: color 0.15s, transform 0.1s;
 }
-.speed-reset-btn:hover { color: var(--accent-color); }
+.speed-reset-btn:hover {
+    color: var(--accent-color);
+    transform: scale(1.15);
+}
+.speed-reset-btn:active {
+    transform: scale(0.95);
+}
 
 /* 음량 조절 (콤팩트) */
 .volume-control {
@@ -941,6 +947,11 @@ main {
     .speed-value {
         font-size: 0.7rem !important;
         min-width: 24px !important;
+    }
+
+    .speed-reset-btn {
+        font-size: 0.85rem !important;
+        padding: 0 3px !important;
     }
 
     .volume-slider {

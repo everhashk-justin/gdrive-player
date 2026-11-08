@@ -9,7 +9,7 @@
     <title>Sorting Player (Google Drive)</title>
     <link rel="icon" href="../icon.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=3.1">
+    <link rel="stylesheet" href="style.css?v=3.2">
     <!-- Google Identity Services (GIS) SDK -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -133,7 +133,7 @@
                         <button class="speed-step-btn" onclick="stepSpeed(-1)" title="속도 감소">−</button>
                         <span class="speed-value" id="speed-display">1.0x</span>
                         <button class="speed-step-btn" onclick="stepSpeed(1)" title="속도 증가">+</button>
-                        <button class="speed-reset-btn" onclick="setSpeedStep(0)" title="1.0x 초기화">↺</button>
+                        <button class="speed-reset-btn" onclick="resetSpeed()" title="1.0x 초기화">↺</button>
                     </div>
 
                     <div class="ctrl-divider"></div>
@@ -273,7 +273,7 @@
     <!-- 토스트 메시지 -->
     <div class="toast" id="toast"></div>
 
-    <script src="app.js?v=3.1"></script>
+    <script src="app.js?v=3.2"></script>
 </body>
 </html>
 

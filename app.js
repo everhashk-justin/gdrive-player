@@ -854,6 +854,10 @@ function stepSpeed(delta) {
 }
 
 function setSpeedStep(idx) {
+    // 안전한 범위 체크 (기본값 인덱스 3 = 1.0x)
+    if (typeof idx !== 'number' || idx < 0 || idx >= STATE.speedValues.length) {
+        idx = 3;
+    }
     STATE.currentSpeedIndex = idx;
     const slider = document.getElementById('speed-slider');
     if (slider) slider.value = idx - 3;
@@ -861,6 +865,12 @@ function setSpeedStep(idx) {
     const display = document.getElementById('speed-display');
     if (display) display.textContent = `${speedVal.toFixed(2).replace(/\.?0+$/, '')}x`;
     applySpeed();
+}
+
+// 1.0x 배속 초기화 (PC 및 모바일 공통)
+function resetSpeed() {
+    setSpeedStep(3); // 1.0x 인덱스
+    showToast('배속 1.0x로 초기화');
 }
 
 function applySpeed() {
