@@ -117,6 +117,8 @@ function extractFolderId(input) {
 }
 
 // --- 3. Google Identity Services (GIS) 인증 모듈 ---
+let tokenRefreshPromise = null;
+
 function initGisAuth() {
     const cfg = loadConfig();
     if (!cfg.clientId) {
@@ -133,7 +135,7 @@ function initGisAuth() {
     STATE.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: cfg.clientId.trim(),
         scope: 'https://www.googleapis.com/auth/drive',
-        callback: handleTokenResponse
+        callback: (resp) => handleTokenResponse(resp, false)
     });
 
     // 브라우저 로컬 저장소에 유효한 토큰이 남아있는지 확인 (브라우저를 닫아도 유지)
@@ -166,6 +168,9 @@ function handleAuthClick() {
             initGisAuth();
         }
         if (STATE.tokenClient) {
+            // 사용자가 직접 로그인을 시도할 때는 콜백에 isInitialLogin = true 전달
+            STATE.tokenClient.callback = (resp) => handleTokenResponse(resp, true);
+
             // 이전에 로그인한 적이 있으면 prompt를 비워 번거로운 동의 절차 없이 가볍게 갱신
             const hasLoggedInBefore = localStorage.getItem('gdrive_has_logged_in') === 'true';
             STATE.tokenClient.requestAccessToken({ prompt: hasLoggedInBefore ? '' : 'consent' });
@@ -175,15 +180,19 @@ function handleAuthClick() {
     }
 }
 
-function handleTokenResponse(resp) {
+function handleTokenResponse(resp, isInitialLogin = false) {
     if (resp.error) {
         console.error('Google Auth Error:', resp);
-        // 만약 prompt: '' 로 자동 갱신 실패 시 consent로 재시도
+        // 만약 prompt: '' 로 자동 갱신 실패 시 consent로 재시도 (사용자 직접 로그인 시에만)
         if (resp.error === 'interaction_required' && STATE.tokenClient) {
-            STATE.tokenClient.requestAccessToken({ prompt: 'consent' });
+            if (isInitialLogin) {
+                STATE.tokenClient.requestAccessToken({ prompt: 'consent' });
+            }
             return;
         }
-        showToast('구글 로그인에 실패했습니다: ' + resp.error, 'error');
+        if (isInitialLogin) {
+            showToast('구글 로그인에 실패했습니다: ' + resp.error, 'error');
+        }
         return;
     }
     STATE.accessToken = resp.access_token;
@@ -195,8 +204,15 @@ function handleTokenResponse(resp) {
     localStorage.setItem('gdrive_has_logged_in', 'true');
 
     updateAuthUI(true);
-    showToast('구글 계정 인증이 완료되었습니다.', 'success');
-    onAuthenticated();
+
+    // 중요: 사용자가 직접 로그인했을 때만 시작 폴더를 새로 로드합니다.
+    // 재생 중 백그라운드 토큰 갱신 시에는 기존 재생 상태와 현재 폴더를 그대로 유지합니다.
+    if (isInitialLogin) {
+        showToast('구글 계정 인증이 완료되었습니다.', 'success');
+        onAuthenticated();
+    } else {
+        console.log('[Auth] Access Token 백그라운드 자동 갱신 완료 (재생 상태 유지)');
+    }
 }
 
 function logout() {
@@ -234,23 +250,37 @@ function updateAuthUI(isLoggedIn) {
 }
 
 async function ensureValidToken() {
-    if (!STATE.accessToken || Date.now() >= STATE.tokenExpiresAt - 60000) {
-        // 토큰 만료 또는 없음 -> 백그라운드 갱신 요청 시도
-        return new Promise((resolve, reject) => {
+    // 토큰 만료 5분(300초) 전부터 백그라운드 선제 갱신 (음악 재생 중 끊김 방지)
+    if (!STATE.accessToken || Date.now() >= STATE.tokenExpiresAt - 300000) {
+        if (tokenRefreshPromise) {
+            return await tokenRefreshPromise;
+        }
+
+        tokenRefreshPromise = new Promise((resolve, reject) => {
             if (!STATE.tokenClient) {
+                tokenRefreshPromise = null;
                 reject(new Error('Auth client not initialized'));
                 return;
             }
             STATE.tokenClient.callback = (resp) => {
+                tokenRefreshPromise = null;
                 if (resp.error) {
-                    reject(resp.error);
+                    console.warn('[Auth] 백그라운드 토큰 갱신 경고:', resp.error);
+                    // 토큰이 완전히 만료되기 전이라면 기존 토큰으로 우선 진행
+                    if (STATE.accessToken && Date.now() < STATE.tokenExpiresAt) {
+                        resolve(STATE.accessToken);
+                    } else {
+                        reject(new Error(resp.error));
+                    }
                 } else {
-                    handleTokenResponse(resp);
+                    handleTokenResponse(resp, false); // isInitialLogin = false
                     resolve(resp.access_token);
                 }
             };
             STATE.tokenClient.requestAccessToken({ prompt: '' });
         });
+
+        return await tokenRefreshPromise;
     }
     return STATE.accessToken;
 }
@@ -267,8 +297,9 @@ async function driveFetch(url, options = {}, retries = 2) {
         const response = await fetch(url, { ...options, headers });
 
         if (response.status === 401 && retries > 0) {
-            // 토큰 만료 재시도
+            // 토큰 만료 재시도 (토큰 강제 무효화 후 재발급)
             STATE.accessToken = null;
+            STATE.tokenExpiresAt = 0;
             return driveFetch(url, options, retries - 1);
         }
 
@@ -656,8 +687,17 @@ async function playSongAtIndex(index) {
 
     } catch (e) {
         console.error('재생 실패:', e);
-        showToast('음원을 재생할 수 없습니다: ' + e.message, 'error');
-        document.getElementById('np-status').textContent = '재생 오류';
+        showToast(`'${song.name}' 음원을 재생할 수 없습니다: ${e.message}`, 'error');
+        document.getElementById('np-status').textContent = '재생 오류 - 다음 곡으로 건너뜁니다';
+
+        // 연속 재생 유지: 일시적 오류 시 1.5초 후 다음 곡으로 자동 이동
+        if (STATE.songs.length > 1) {
+            setTimeout(() => {
+                if (STATE.currentIndex === index && !STATE.isPlaying) {
+                    playNext();
+                }
+            }, 1500);
+        }
     }
 }
 
@@ -896,6 +936,20 @@ audio.addEventListener('ended', () => {
         audio.play();
     } else {
         playNext();
+    }
+});
+
+// 오디오 디코딩/스트리밍 오류 시 자동 건너뛰기
+audio.addEventListener('error', (e) => {
+    console.error('[Audio Error]', audio.error);
+    releaseWakeLock();
+    STATE.isPlaying = false;
+    updatePlayBtnUI();
+    document.getElementById('np-status').textContent = '오디오 오류 - 다음 곡으로 건너뜁니다';
+    if (STATE.songs.length > 1) {
+        setTimeout(() => {
+            playNext();
+        }, 1500);
     }
 });
 
