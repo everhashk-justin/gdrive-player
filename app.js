@@ -441,6 +441,23 @@ async function loadFolder(folderId) {
         STATE.relatedFilesMap = contents.relatedFilesMap;
         STATE.playbackHistory = [];
 
+        // 이전 폴더의 재생 상태 및 선택 상태 완전 초기화
+        audio.pause();
+        STATE.isPlaying = false;
+        STATE.currentIndex = -1;
+        STATE.shufflePointer = 0;
+        if (STATE.currentBlobUrl) {
+            URL.revokeObjectURL(STATE.currentBlobUrl);
+            STATE.currentBlobUrl = null;
+        }
+        audio.src = '';
+        updatePlayBtnUI();
+        document.getElementById('np-title').textContent = '재생 중이 아님';
+        document.getElementById('np-status').textContent = '대기 중';
+        document.getElementById('progress-fill').style.width = '0%';
+        document.getElementById('time-current').textContent = '0:00';
+        document.getElementById('time-total').textContent = '0:00';
+
         // 이름순 정렬
         sortSongs();
 
@@ -448,9 +465,10 @@ async function loadFolder(folderId) {
         renderFolderList();
         renderSongList();
 
-        // 셔플 인덱스 생성
+        // 셔플 인덱스 생성 (랜덤 모드가 켜져 있다면 새 폴더 기준으로 즉시 새로 생성)
         if (STATE.isShuffle) {
             generateShuffleIndices();
+            STATE.shufflePointer = 0;
         }
 
     } catch (e) {
@@ -584,6 +602,14 @@ async function playSongAtIndex(index) {
     STATE.currentIndex = index;
     const song = STATE.songs[index];
 
+    // 셔플 모드 활성화 시 셔플 포인터 동기화
+    if (STATE.isShuffle && STATE.shuffleIndices && STATE.shuffleIndices.length > 0) {
+        const sIdx = STATE.shuffleIndices.indexOf(index);
+        if (sIdx !== -1) {
+            STATE.shufflePointer = sIdx;
+        }
+    }
+
     // UI 갱신
     document.querySelectorAll('.song-panel .item').forEach((el, i) => {
         el.classList.toggle('active', i === index);
@@ -661,7 +687,16 @@ async function loadLyricsForSong(song) {
 function togglePlay() {
     if (!audio.src || STATE.currentIndex === -1) {
         if (STATE.songs.length > 0) {
-            playSongAtIndex(0);
+            if (STATE.isShuffle) {
+                if (!STATE.shuffleIndices || STATE.shuffleIndices.length !== STATE.songs.length) {
+                    generateShuffleIndices();
+                }
+                STATE.shufflePointer = 0;
+                const targetIdx = STATE.shuffleIndices[0];
+                playSongAtIndex(targetIdx !== undefined ? targetIdx : 0);
+            } else {
+                playSongAtIndex(0);
+            }
         }
         return;
     }
@@ -686,6 +721,9 @@ function playNext() {
     if (STATE.songs.length === 0) return;
 
     if (STATE.isShuffle) {
+        if (!STATE.shuffleIndices || STATE.shuffleIndices.length !== STATE.songs.length) {
+            generateShuffleIndices();
+        }
         STATE.shufflePointer = (STATE.shufflePointer + 1) % STATE.shuffleIndices.length;
         playSongAtIndex(STATE.shuffleIndices[STATE.shufflePointer]);
     } else {
@@ -730,6 +768,9 @@ function playPrev() {
 
     // 3. 히스토리가 비어있는 경우: 기존 셔플 또는 순차 이전 곡으로 폴백
     if (STATE.isShuffle) {
+        if (!STATE.shuffleIndices || STATE.shuffleIndices.length !== STATE.songs.length) {
+            generateShuffleIndices();
+        }
         STATE.shufflePointer = (STATE.shufflePointer - 1 + STATE.shuffleIndices.length) % STATE.shuffleIndices.length;
         playSongAtIndex(STATE.shuffleIndices[STATE.shufflePointer]);
     } else {
@@ -756,6 +797,11 @@ function toggleShuffle() {
 }
 
 function generateShuffleIndices() {
+    if (!STATE.songs || STATE.songs.length === 0) {
+        STATE.shuffleIndices = [];
+        STATE.shufflePointer = 0;
+        return;
+    }
     STATE.shuffleIndices = STATE.songs.map((_, i) => i);
     // Fisher-Yates 알고리즘
     for (let i = STATE.shuffleIndices.length - 1; i > 0; i--) {
