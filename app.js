@@ -28,6 +28,8 @@ const STATE = {
     isShuffle: false,
     shuffleIndices: [],
     shufflePointer: 0,
+    playbackHistory: [], // 실제 재생 곡 이력 스택 (완벽 이전 곡 복귀용)
+    isNavigatingHistory: false,
     repeatMode: 0, // 0: 반복 안함, 1: 전체 반복, 2: 1곡 반복
     sortAsc: true,
 
@@ -437,6 +439,7 @@ async function loadFolder(folderId) {
         STATE.songs = contents.audioFiles;
         STATE.lyricsMap = contents.lyricsMap;
         STATE.relatedFilesMap = contents.relatedFilesMap;
+        STATE.playbackHistory = [];
 
         // 이름순 정렬
         sortSongs();
@@ -563,6 +566,21 @@ function toggleSort() {
 // 곡 재생
 async function playSongAtIndex(index) {
     if (index < 0 || index >= STATE.songs.length) return;
+
+    // 실제 재생 이력 스택 기록 (새로운 곡으로 변경 시 & 뒤로가기 탐색 중이 아닐 때)
+    if (STATE.currentIndex !== -1 && STATE.currentIndex !== index && !STATE.isNavigatingHistory) {
+        const prevSong = STATE.songs[STATE.currentIndex];
+        if (prevSong) {
+            const last = STATE.playbackHistory[STATE.playbackHistory.length - 1];
+            if (!last || last.id !== prevSong.id) {
+                STATE.playbackHistory.push({ id: prevSong.id, name: prevSong.name });
+                if (STATE.playbackHistory.length > 100) {
+                    STATE.playbackHistory.shift();
+                }
+            }
+        }
+    }
+
     STATE.currentIndex = index;
     const song = STATE.songs[index];
 
@@ -687,12 +705,30 @@ function playNext() {
 function playPrev() {
     if (STATE.songs.length === 0) return;
 
-    // 현재 곡 재생이 3초 이상 지났으면 곡의 처음으로
+    // 1. 현재 곡 재생이 3초 이상 지났으면 곡의 처음으로 되감기
     if (audio.currentTime > 3) {
         audio.currentTime = 0;
+        showToast('곡의 처음으로 이동');
         return;
     }
 
+    // 2. 실제 재생 히스토리 스택이 남아있다면 직전에 들었던 곡으로 완벽 복귀
+    while (STATE.playbackHistory && STATE.playbackHistory.length > 0) {
+        const prevItem = STATE.playbackHistory.pop();
+        const foundIdx = STATE.songs.findIndex(s => s.id === prevItem.id);
+        if (foundIdx !== -1) {
+            STATE.isNavigatingHistory = true;
+            try {
+                playSongAtIndex(foundIdx);
+                showToast(`이전 곡으로 이동: ${prevItem.name}`);
+            } finally {
+                STATE.isNavigatingHistory = false;
+            }
+            return;
+        }
+    }
+
+    // 3. 히스토리가 비어있는 경우: 기존 셔플 또는 순차 이전 곡으로 폴백
     if (STATE.isShuffle) {
         STATE.shufflePointer = (STATE.shufflePointer - 1 + STATE.shuffleIndices.length) % STATE.shuffleIndices.length;
         playSongAtIndex(STATE.shuffleIndices[STATE.shufflePointer]);
@@ -990,6 +1026,12 @@ function removeAssociatedSongsFromListAndAdvance(baseStem) {
     // 맵에서도 정리
     STATE.relatedFilesMap.delete(lowerStem);
     STATE.lyricsMap.delete(lowerStem);
+
+    // 재생 히스토리에서도 삭제/이동된 곡 제거
+    STATE.playbackHistory = STATE.playbackHistory.filter(item => {
+        const { stem } = getFileStemAndExt(item.name);
+        return stem.toLowerCase() !== lowerStem;
+    });
 
     renderSongList();
 
