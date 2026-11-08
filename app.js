@@ -758,6 +758,9 @@ function updatePlayBtnUI() {
 
 // 다음 곡 / 이전 곡
 function playNext() {
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
     if (STATE.songs.length === 0) return;
 
     if (STATE.isShuffle) {
@@ -781,6 +784,9 @@ function playNext() {
 }
 
 function playPrev() {
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
     if (STATE.songs.length === 0) return;
 
     // 1. 현재 곡 재생이 3초 이상 지났으면 곡의 처음으로 되감기
@@ -1140,15 +1146,30 @@ function removeAssociatedSongsFromListAndAdvance(baseStem) {
         audio.src = '';
         STATE.isPlaying = false;
         STATE.currentIndex = -1;
+        STATE.shuffleIndices = [];
+        STATE.shufflePointer = 0;
         document.getElementById('np-title').textContent = '재생 중이 아님';
         document.getElementById('np-status').textContent = '대기 중';
         updatePlayBtnUI();
         return;
     }
 
-    // 다음 곡 인덱스 유지
-    const nextIdx = STATE.currentIndex < STATE.songs.length ? STATE.currentIndex : 0;
-    playSongAtIndex(nextIdx);
+    // 랜덤(셔플) 모드가 켜져 있다면, 줄어든 목록 기준으로 셔플 인덱스를 새로 구성하고 랜덤하게 다음 곡 재생
+    if (STATE.isShuffle) {
+        STATE.currentIndex = -1;
+        generateShuffleIndices();
+        if (STATE.shuffleIndices.length > 0) {
+            STATE.shufflePointer = 0;
+            const targetIdx = STATE.shuffleIndices[0];
+            playSongAtIndex(targetIdx !== undefined ? targetIdx : 0);
+        } else {
+            playSongAtIndex(0);
+        }
+    } else {
+        // 순차 재생 모드: 현재 위치의 다음 곡 재생
+        const nextIdx = STATE.currentIndex < STATE.songs.length ? STATE.currentIndex : 0;
+        playSongAtIndex(nextIdx);
+    }
 }
 
 async function performAction(actionType) {

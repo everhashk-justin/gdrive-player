@@ -388,21 +388,48 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s;
+    transition: color 0.15s ease, transform 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
 }
 
-.btn-ctrl:hover {
+.btn-ctrl:focus,
+.btn-ctrl:focus-visible {
+    outline: none;
+    color: #e2e8f0;
+}
+
+/* 터치 및 마우스 클릭 시 누르는 순간에만 살짝 피드백 */
+.btn-ctrl:active {
     color: var(--accent-color);
-    transform: scale(1.1);
+    transform: scale(0.92);
 }
 
+/* 마우스 환경에서만 Hover 적용 (모바일 터치 Sticky Hover 원천 방지) */
+@media (hover: hover) and (pointer: fine) {
+    .btn-ctrl:hover {
+        color: var(--accent-color);
+        transform: scale(1.1);
+    }
+    .btn-play:hover {
+        transform: scale(1.08);
+    }
+}
+
+/* 셔플, 반복 등 활성화 상태를 유지해야 하는 토글 버튼만 하늘색 고정 */
 .btn-ctrl.active {
-    color: var(--accent-color);
+    color: var(--accent-color) !important;
 }
 
 .btn-play {
     font-size: 2rem;
     color: var(--accent-color);
+    transition: transform 0.1s ease;
+    outline: none;
+}
+
+.btn-play:active {
+    transform: scale(0.92);
 }
 
 /* 우측: 서브 컨트롤 (배속 & 음량 묶음) */
