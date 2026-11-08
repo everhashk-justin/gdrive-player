@@ -599,12 +599,12 @@ async function playSongAtIndex(index) {
         updatePlayBtnUI();
         document.getElementById('np-status').textContent = '재생 중';
 
-        // 목록 아이콘 갱신
+        // 목록 아이콘 갱신 및 화면 중앙 자동 스크롤
         const currentItem = document.getElementById(`song-item-${index}`);
         if (currentItem) {
             const icon = currentItem.querySelector('.item-icon i');
             if (icon) icon.className = 'fas fa-volume-up';
-            currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            currentItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         // MediaSession 등록 (모바일 잠금화면)
