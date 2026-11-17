@@ -68,14 +68,14 @@ const CONFIG_KEY = 'gdrive_player_config_v1';
 
 function getDefaultConfig() {
     return {
-        clientId: '',
-        rootFolder: '',
-        t1: '',
-        t2: '',
-        t3: '',
-        p1: '',
-        p2: '',
-        p3: '',
+        clientId: '951071970250-s3huvk3bn2iacqqq20hf8v6f835k1bsv.apps.googleusercontent.com',
+        rootFolder: 'https://drive.google.com/drive/folders/10iXHRbeKup_nvn2aUcCK-aqlpOLxc1rZ',
+        t1: 'https://drive.google.com/drive/folders/1QrTcju_iWaxyVHA7xNxECgYHbVbiBmAo',
+        t2: 'https://drive.google.com/drive/folders/1N3WgKhRI4mavN6f380NQRDm_Qp_7VlMM',
+        t3: 'https://drive.google.com/drive/folders/12yVTqFkxA0Jl7bhidFTcA-GAbQth801B',
+        p1: 'https://drive.google.com/drive/folders/1DQ4eJB0qTofIu-mTvPTqknyLpicr55cc',
+        p2: 'https://drive.google.com/drive/folders/1mh3t4gj8Zix4LlyeKVLSetkKa9Kgu3Kn',
+        p3: 'https://drive.google.com/drive/folders/15wHQ8xFkbz_Q4YQY7Bo-m7gXWAxnefQ1',
         volume: 1.0,
         speedIndex: 3,
         repeatMode: 0,
@@ -85,15 +85,24 @@ function getDefaultConfig() {
 }
 
 function loadConfig() {
+    const def = getDefaultConfig();
     try {
         const raw = localStorage.getItem(CONFIG_KEY);
         if (raw) {
-            return { ...getDefaultConfig(), ...JSON.parse(raw) };
+            const parsed = JSON.parse(raw);
+            const merged = { ...def, ...parsed };
+            // 저장된 값이 비어있는 경우 기본 하드코딩 값 우선 적용
+            for (const key of ['clientId', 'rootFolder', 't1', 't2', 't3', 'p1', 'p2', 'p3']) {
+                if (!merged[key] && def[key]) {
+                    merged[key] = def[key];
+                }
+            }
+            return merged;
         }
     } catch (e) {
         console.error('설정 로드 실패:', e);
     }
-    return getDefaultConfig();
+    return def;
 }
 
 function saveConfigToStorage(cfg) {
